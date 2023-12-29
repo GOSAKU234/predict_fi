@@ -1,0 +1,51 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy container app to Azure Web App - predictfi
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: 'ubuntu-latest'
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Log in to registry
+      uses: docker/login-action@v2
+      with:
+        registry: https://predictfi.azurecr.io/
+        username: ${{ secrets.AzureAppService_ContainerUsername_23207ef2a8ae447cb3a0a4e6453e0e6f }}
+        password: ${{ secrets.AzureAppService_ContainerPassword_b118f62c027f4a91ba095f77c512917e }}
+
+    - name: Build and push container image to registry
+      uses: docker/build-push-action@v3
+      with:
+        push: true
+        tags: predictfi.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_23207ef2a8ae447cb3a0a4e6453e0e6f }}/predictfi:${{ github.sha }}
+        file: ./Dockerfile
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
+    steps:
+    - name: Deploy to Azure Web App
+      id: deploy-to-webapp
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'predictfi'
+        slot-name: 'production'
+        publish-profile: ${{ secrets.AzureAppService_PublishProfile_31de7f26bc2d4c78b853e470c39402df }}
+        images: 'predictfi.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_23207ef2a8ae447cb3a0a4e6453e0e6f }}/predictfi:${{ github.sha }}'
